@@ -300,4 +300,3 @@ workflows:
       # - cleanup:
       #     requires: [cloudfront-update]
 
-new webpack.EnvironmentPlugin : (['NODE_ENV', 'DEBUG']);
