@@ -57,6 +57,7 @@ commands:
                 npm install
                 npm run migration:revert
               fi
+              
             
 jobs:
   build-frontend:
