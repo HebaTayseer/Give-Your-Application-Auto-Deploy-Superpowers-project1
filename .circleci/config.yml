@@ -1,9 +1,8 @@
 version: 2.1
 
-#orbs:
-#  slack: circleci/slack@4.12.0
 
 commands:
+
     install_awscli:
       description: Install AWS CLI v2
       steps: 
@@ -13,6 +12,7 @@ commands:
               curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
               unzip awscliv2.zip
               sudo ./aws/install
+
     install_ansible:
       description: Install Ansible v2
       steps:
@@ -23,17 +23,10 @@ commands:
               sudo apt install software-properties-common
               sudo add-apt-repository --yes --update ppa:ansible/ansible
               sudo apt install ansible
-#   notify_on_failure:
-#     steps:
-#       - slack/notify:
-#           event: fail
-#           channel: cicd-pipeline
-#           template: basic_fail_1
       
     destroy-environment:
       description: Destroy back-end and front-end cloudformation stacks given a workflow ID.
-      parameters:
-        # Add parameter here 
+      parameters: 
         Workflow_ID: 
           type: string
           default: ${CIRCLE_WORKFLOW_ID:0:7} 
@@ -49,19 +42,16 @@ commands:
     revert-migrations:
       description: Revert the last migration if successfully run in the current workflow.
       parameters:
-        # Add parameter here
         Workflow_ID: 
           type: string
-          default: ${CIRCLE_WORKFLOW_ID:0:7}
       steps:
         - run:
             name: Revert migrations
-            # Add when this will run
             when: on_fail
             command: |
               # Curl command here to see if there was a successful migration associated with the workflow id, store result in SUCCESS variable
-              SUCCESS =$(curl --insecure https://kvdp.io/${KVDB_BUCKET}/migration_ << parameters.Workflow_ID >>
-              if(( $SUCCESS==1 )); 
+              SUCCESS =$(curl --insecure https://kvdp.io/${KVDB_BUCKET}/migration_<< parameters.Workflow_ID >>
+              if(( $SUCCESS == 1 )); 
               then
                 cd ~/project/backend
                 npm install
@@ -85,7 +75,6 @@ jobs:
       - save_cache:
           paths: [frontend/node_modules]
           key: frontend-deps
-      # - notify_on_failure
 
   build-backend:
     docker:
@@ -103,7 +92,6 @@ jobs:
       - save_cache:
           paths: [backend/node_modules]
           key: backend-deps
-      # - notify_on_failure
           
 
   test-frontend:
@@ -119,7 +107,6 @@ jobs:
             cd frontend
             npm install
             npm test
-      # - notify_on_failure
             
                 
   test-backend:
@@ -135,7 +122,6 @@ jobs:
             cd backend
             npm install
             npm test
-      # - notify_on_failure
             
   scan-frontend:
     docker:
@@ -151,7 +137,6 @@ jobs:
             npm install
             npm audit fix --force --audit-level=critical
             npm audit --audit-level=critical
-      # - notify_on_failure
 
   scan-backend:
     docker:
@@ -168,23 +153,14 @@ jobs:
             npm audit fix --force --audit-level=critical
             npm audit fix --force --audit-level=critical
             npm audit --audit-level=critical
-      # - notify_on_failure
-  # notify_on_success:
-  #   docker:
-  #     - image: cimg/base:stable
-  #   steps:
-  #     - slack/notify:
-  #         event: pass
-  #         channel: cicd-pipeline
-  #         template: success_tagged_deployment_1
+
   deploy-infrastructure:
     docker:
-      # Docker image here that supports AWS CLI
       - image: cimg/base:stable
     steps:
-      # Checkout code from git
       - checkout
       - install_awscli
+
       - run:
           name: Ensure back-end infrastructure exists
           command: |
@@ -217,7 +193,7 @@ jobs:
           root: ~/
           paths:
             - project/.circleci/ansible/inventory.txt
-      # Here's where you will add some code to rollback on failure 
+      # Here's some code to rollback on failure 
       - destroy-environment     
 
   configure-infrastructure:
@@ -225,19 +201,12 @@ jobs:
       # Docker image here that supports Ansible
       - image: cimg/base:stable
     steps:
-      # Checkout code from git
-      # Add ssh keys with fingerprint
-      # attach workspace
       - checkout
       - install_ansible
       - add_ssh_keys:
           fingerprints: ["98:cf:41:30:a7:b6:42:f0:07:f8:bb:3b:42:40:37:23"]
       - attach_workspace:
           at: ~/
-      # - run:
-      #     name: Install dependencies
-      #     command: |
-      #       # Your code here
             
       - run:
           name: Configure server
@@ -246,7 +215,7 @@ jobs:
             cd .circleci/ansible
             cat inventory.txt
             ansible-playbook -i inventory.txt configure-server.yml
-      # Here's where you will add some code to rollback on failure 
+      # Here's some code to rollback on failure 
       - destroy-environment     
 
   run-migrations:
@@ -260,19 +229,17 @@ jobs:
       - run:
           name: Run migrations
           command: |
-            # Your code here
             cd backend
             npm install
             npm run migrations > migrations_dump.txt
       - run:
-          name: Send migration results to memstash
+          name: Send migration status to kvdb.io
           command: |
-            # Your code here
             if grep -q "has been executed successfully." ~/project/backend/migrations_dump.txt
             then
               curl https://kvdp.io/${KVDB_BUCKET}/migration_${CIRCLE_WORKFLOW_ID:0:7} -d '1'
             fi
-      # Here's where you will add some code to rollback on failure  
+      # Here's some code to rollback on failure  
       - destroy-environment
       - revert-migrations
 
@@ -386,14 +353,6 @@ workflows:
           requires: [build-backend]
       - scan-frontend:
           requires: [build-frontend]
-      # - notify_on_success:
-      #     requires:
-      #      - test-frontend
-      #      - test-backend 
-      #      - scan-frontend
-      #      - scan-backend
-
-
       - deploy-infrastructure:
           requires: [test-frontend, test-backend, scan-frontend, scan-backend]
           filters:
