@@ -107,10 +107,9 @@ jobs:
 
   test-frontend:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/node:13.8.0
     steps:
       - checkout
-      - install_nodejs
       - restore_cache:
           keys: [frontend-deps]
       - run:
@@ -123,10 +122,9 @@ jobs:
                 
   test-backend:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/node:13.8.0
     steps:
       - checkout
-      - install_nodejs
       - restore_cache:
           keys: [backend-deps]
       - run:
@@ -421,10 +419,10 @@ workflows:
     jobs:
       - build-frontend
       - build-backend
-      # - test-frontend:
-      #     requires: [build-frontend]
-      # - test-backend:
-      #     requires: [build-backend]
+      - test-frontend:
+          requires: [build-frontend]
+      - test-backend:
+          requires: [build-backend]
       # - scan-backend:
       #     requires: [build-backend]
       # - scan-frontend:
